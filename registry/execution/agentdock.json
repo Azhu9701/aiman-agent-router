@@ -1,0 +1,27 @@
+{
+  "id": "aiman.agentdock",
+  "type": "execution_fabric",
+  "name": "AgentDock Execution Fabric",
+  "domains": ["*"],
+  "capabilities": [
+    "execute_plan",
+    "tool_call",
+    "task_run",
+    "mcp_call",
+    "a2a_call"
+  ],
+  "protocols": ["native", "mcp", "a2a"],
+  "provenance": "supported",
+  "freshness": {
+    "runtime": "live"
+  },
+  "write_policy": {
+    "production": "policy_gated",
+    "canonical_world_model": "forbidden"
+  },
+  "execution": {
+    "targets": ["vps", "mac-worknode", "api", "browser", "robot"]
+  },
+  "priority": 100,
+  "enabled": true
+}

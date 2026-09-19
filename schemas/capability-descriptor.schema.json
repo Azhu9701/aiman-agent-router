@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/router/capability-descriptor.schema.json",
+  "title": "AIMAN CapabilityDescriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "name", "domains", "capabilities", "enabled"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "type": {"enum": ["world_model", "agent", "decision_model", "execution_fabric"]},
+    "name": {"type": "string", "minLength": 1},
+    "domains": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "capabilities": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "protocols": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "provenance": {"type": "string"},
+    "freshness": {"type": "object"},
+    "write_policy": {"type": "object"},
+    "execution": {"type": "object"},
+    "priority": {"type": "integer"},
+    "enabled": {"type": "boolean"}
+  }
+}

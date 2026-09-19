@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/router/routing-decision.schema.json",
+  "title": "AIMAN RoutingDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "status", "selected", "candidate_scores", "missing_capabilities", "human_review_required", "reasons"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "status": {"enum": ["ready", "needs_review"]},
+    "selected": {"type": "array", "items": {"type": "string"}},
+    "candidate_scores": {"type": "object", "additionalProperties": {"type": "integer"}},
+    "missing_capabilities": {"type": "array", "items": {"type": "string"}},
+    "human_review_required": {"type": "boolean"},
+    "reasons": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/router/execution-result.schema.json",
+  "title": "AIMAN ExecutionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "status", "outputs", "evidence", "trace"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "status": {"type": "string"},
+    "outputs": {"type": "object"},
+    "evidence": {"type": "array", "items": {"type": "object"}},
+    "trace": {"type": "array", "items": {"type": "object"}}
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "aiman.public-web-research",
+  "type": "agent",
+  "name": "Public Web Research Agent",
+  "domains": ["*"],
+  "capabilities": [
+    "web_research",
+    "evidence_gathering",
+    "source_crosscheck"
+  ],
+  "protocols": ["native"],
+  "provenance": "supported",
+  "freshness": {
+    "web": "live"
+  },
+  "write_policy": {
+    "external_side_effects": "forbidden"
+  },
+  "execution": {
+    "target": "agentdock"
+  },
+  "priority": 60,
+  "enabled": true
+}

@@ -1,0 +1,33 @@
+{
+  "id": "aiman.robotics",
+  "type": "world_model",
+  "name": "聚身之家 Robotics Industry World Model",
+  "domains": ["robotics", "embodied_ai", "manufacturing"],
+  "capabilities": [
+    "entity_lookup",
+    "constraint_match",
+    "relation_query",
+    "event_query",
+    "timeline_query",
+    "supplier_query",
+    "deployment_query",
+    "contribution_submit"
+  ],
+  "protocols": ["native_http", "mcp"],
+  "provenance": "required",
+  "freshness": {
+    "events": "near_realtime",
+    "entities": "daily"
+  },
+  "write_policy": {
+    "canonical": "forbidden",
+    "contribution_pr": "allowed",
+    "merge": "human_review"
+  },
+  "execution": {
+    "target": "agentdock",
+    "adapter": "iwm"
+  },
+  "priority": 100,
+  "enabled": true
+}

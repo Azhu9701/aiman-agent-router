@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/router/task-envelope.schema.json",
+  "title": "AIMAN TaskEnvelope",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["goal", "domains", "intent", "required_capabilities"],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "goal": {"type": "string", "minLength": 1},
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "intent": {"type": "string", "minLength": 1},
+    "required_capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "constraints": {"type": "object"},
+    "evidence_required": {"type": "boolean", "default": true},
+    "freshness_required": {"type": "boolean", "default": false},
+    "side_effects": {"type": "boolean", "default": false},
+    "metadata": {"type": "object"}
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "aiman.kev",
+  "type": "decision_model",
+  "name": "AIMAN-Kev Decision Layer",
+  "domains": ["*"],
+  "capabilities": [
+    "task_classify",
+    "route_hint",
+    "risk_assess",
+    "evidence_policy"
+  ],
+  "protocols": ["native_http"],
+  "provenance": "supported",
+  "freshness": {
+    "model": "versioned"
+  },
+  "write_policy": {
+    "execution": "advisory_only"
+  },
+  "execution": {
+    "target": "agentdock",
+    "adapter": "kev"
+  },
+  "priority": 80,
+  "enabled": true
+}

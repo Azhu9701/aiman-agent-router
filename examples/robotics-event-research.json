@@ -1,0 +1,12 @@
+{
+  "goal": "找出最近值得进入机器人产业时间线的融资事件，并要求独立来源交叉核验",
+  "domains": ["robotics"],
+  "intent": "industry_research",
+  "required_capabilities": ["event_query", "evidence_gathering"],
+  "constraints": {
+    "event_type": "funding"
+  },
+  "evidence_required": true,
+  "freshness_required": true,
+  "side_effects": false
+}

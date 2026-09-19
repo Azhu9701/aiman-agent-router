@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/router/execution-plan.schema.json",
+  "title": "AIMAN ExecutionPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "status", "steps", "human_review_required"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "status": {"enum": ["ready", "needs_review"]},
+    "human_review_required": {"type": "boolean"},
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "target", "capabilities", "depends_on", "metadata"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string"},
+          "target": {"type": "string"},
+          "capabilities": {"type": "array", "items": {"type": "string"}},
+          "depends_on": {"type": "array", "items": {"type": "string"}},
+          "metadata": {"type": "object"}
+        }
+      }
+    }
+  }
+}
