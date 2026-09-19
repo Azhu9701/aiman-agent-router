@@ -38,7 +38,10 @@ python -m aiman_agent_router route examples/robotics-event-research.json
 
 The environment supplies an allowlisted JSON bridge through
 `AIMAN_ROUTER_BRIDGE` (default:
-`/srv/agentdock/.local/bin/aiman-router-bridge`).
+`/srv/agentdock/.local/bin/aiman-router-bridge`). The source-controlled
+reference implementation is `aiman_agent_router.agentdock_bridge`; a node
+wrapper can execute that module while keeping credentials and host config in
+the runtime environment.
 
 ```bash
 python -m aiman_agent_router live examples/live-viabot.json
