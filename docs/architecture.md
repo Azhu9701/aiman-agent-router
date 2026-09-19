@@ -81,6 +81,7 @@ The initial registry contains:
 - `aiman.public-web-research` — public evidence gathering
 - `aiman.kev` — decision-model adapter boundary
 - `aiman.agentdock` — execution fabric
+- `aiman.deepseek-harness-headless` — proposal-only local coding agent on Mac Work Node
 
 ## Routing algorithm
 
@@ -125,8 +126,12 @@ SHA-256 hash. `replay` recomputes the deterministic route without repeating
 external actions.
 
 Environment-specific implementation belongs to AgentDock. The reference bridge
-supports only `agentdock.health`, `kev.analyze`, and
-`iwm.timeline.search`; any other operation fails closed.
+allowlists `agentdock.health`, `kev.analyze`, `iwm.timeline.search`, and
+`deepseek.harness.propose`; any other operation fails closed.
+
+### Proposal-only local coding worker
+
+DeepSeek Harness is deliberately not granted a direct write path into a registered source workspace. `deepseek.harness.propose` snapshots the workspace's committed `HEAD` into an ephemeral Git repository with no remotes, runs the fixed `headless` profile there, and returns the final response plus a bounded patch. This lets the Router use an autonomous coding agent while the existing Work Node remains the authority for reviewed source-workspace edits, commits, and pushes.
 
 ## Next milestones
 

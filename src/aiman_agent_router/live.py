@@ -118,12 +118,25 @@ class LiveRouterRuntime:
                 "error": str(exc),
             }
 
-        kev_args = self._kev_arguments(working, base_task.task_id)
-        kev_response = self.bridge.call("kev.analyze", kev_args)
-        kev = normalize_kev_result(kev_response.result)
-        trace["kev"] = kev
-
-        self._apply_route_hints(working, kev)
+        metadata = working.get("metadata")
+        use_kev = (
+            "robotics" in base_task.domains
+            or (
+                isinstance(metadata, dict)
+                and isinstance(metadata.get("kev_input"), dict)
+            )
+        )
+        if use_kev:
+            kev_args = self._kev_arguments(working, base_task.task_id)
+            kev_response = self.bridge.call("kev.analyze", kev_args)
+            kev = normalize_kev_result(kev_response.result)
+            trace["kev"] = kev
+            self._apply_route_hints(working, kev)
+        else:
+            trace["kev"] = {
+                "skipped": True,
+                "reason": "not_applicable_for_task_domain",
+            }
         routed = self.router.route_and_plan(working)
         trace["task"] = routed["task"]
         trace["decision"] = routed["decision"]
@@ -156,6 +169,21 @@ class LiveRouterRuntime:
                 response = self.bridge.call(
                     "iwm.timeline.search",
                     {"query": query, "limit": max(1, min(limit, 50))},
+                )
+                outputs[identifier] = response.result
+                execution_rows.append(
+                    {
+                        "target": identifier,
+                        "operation": response.operation,
+                        "status": "completed",
+                    }
+                )
+                continue
+
+            if identifier == "aiman.deepseek-harness-headless":
+                response = self.bridge.call(
+                    "deepseek.harness.propose",
+                    self._deepseek_arguments(routed["task"]),
                 )
                 outputs[identifier] = response.result
                 execution_rows.append(
@@ -241,6 +269,25 @@ class LiveRouterRuntime:
         metadata["kev_snapshot"] = kev
 
     @staticmethod
+    def _deepseek_arguments(task: dict[str, Any]) -> dict[str, Any]:
+        constraints = task.get("constraints")
+        constraints = constraints if isinstance(constraints, dict) else {}
+        workspace = constraints.get("workspace")
+        if not isinstance(workspace, str) or not workspace.strip():
+            raise ValueError("DeepSeek Harness execution requires constraints.workspace")
+        harness_task = constraints.get("harness_task")
+        if not isinstance(harness_task, str) or not harness_task.strip():
+            harness_task = str(task.get("goal") or "").strip()
+        if not harness_task:
+            raise ValueError("DeepSeek Harness execution requires a task")
+        timeout = max(10, min(int(constraints.get("timeout", 600)), 1800))
+        return {
+            "workspace": workspace.strip(),
+            "task": harness_task,
+            "timeout": timeout,
+        }
+
+    @staticmethod
     def _iwm_query(task: dict[str, Any]) -> str:
         constraints = task.get("constraints")
         constraints = constraints if isinstance(constraints, dict) else {}
@@ -254,7 +301,26 @@ class LiveRouterRuntime:
         task: dict[str, Any],
         outputs: dict[str, Any],
     ) -> dict[str, Any]:
+        deepseek = outputs.get("aiman.deepseek-harness-headless")
+        deepseek_check: dict[str, Any] | None = None
+        if deepseek is not None:
+            if not isinstance(deepseek, dict) or deepseek.get("ok") is not True:
+                return {"ok": False, "reason": "deepseek_worker_failed"}
+            if deepseek.get("isolation") != "ephemeral_git_snapshot_no_remote":
+                return {"ok": False, "reason": "deepseek_isolation_mismatch"}
+            deepseek_check = {
+                "worker": "deepseek-harness.headless",
+                "source_head": deepseek.get("sourceHead"),
+                "changed_file_count": len(deepseek.get("changedFiles") or []),
+                "proposal_patch_truncated": bool(deepseek.get("proposalPatchTruncated")),
+            }
+
         robotics = outputs.get("aiman.robotics")
+        if robotics is None:
+            if deepseek_check is None:
+                return {"ok": False, "reason": "no_verifiable_output"}
+            return {"ok": True, **deepseek_check}
+
         if not isinstance(robotics, dict):
             return {"ok": False, "reason": "missing_robotics_output"}
 
@@ -279,12 +345,15 @@ class LiveRouterRuntime:
             if not with_sources:
                 return {"ok": False, "reason": "verified_events_lack_sources"}
 
-        return {
+        result = {
             "ok": True,
             "event_count": len(events),
             "verified_event_count": len(verified),
             "evidence_required": bool(task.get("evidence_required")),
         }
+        if deepseek_check is not None:
+            result["deepseek"] = deepseek_check
+        return result
 
     def _finish(self, trace: dict[str, Any]) -> dict[str, Any]:
         trace["completed_at"] = _utc_now()

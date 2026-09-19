@@ -1,0 +1,14 @@
+{
+  "goal": "Inspect the AIMAN Agent Router and propose a small documentation improvement.",
+  "domains": ["software"],
+  "intent": "development",
+  "required_capabilities": ["code_analysis", "patch_proposal"],
+  "constraints": {
+    "workspace": "aiman-agent-router",
+    "harness_task": "Inspect README.md and docs/architecture.md. Propose one small clarity improvement, make it in the ephemeral snapshot, and explain the change.",
+    "timeout": 180
+  },
+  "evidence_required": false,
+  "freshness_required": false,
+  "side_effects": false
+}

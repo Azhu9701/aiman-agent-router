@@ -1,0 +1,31 @@
+{
+  "id": "aiman.deepseek-harness-headless",
+  "type": "agent",
+  "name": "DeepSeek Harness Headless Proposal Worker",
+  "domains": ["*"],
+  "capabilities": [
+    "code_analysis",
+    "patch_proposal",
+    "repo_debugging",
+    "test_execution"
+  ],
+  "protocols": ["native"],
+  "provenance": "supported",
+  "freshness": {
+    "workspace_head": "snapshot"
+  },
+  "write_policy": {
+    "source_workspace": "forbidden",
+    "proposal": "ephemeral_snapshot_only",
+    "production": "forbidden",
+    "canonical_world_model": "forbidden"
+  },
+  "execution": {
+    "target": "mac-worknode",
+    "operation": "deepseek.harness.propose",
+    "profile": "headless",
+    "isolation": "ephemeral_git_snapshot_no_remote"
+  },
+  "priority": 75,
+  "enabled": true
+}

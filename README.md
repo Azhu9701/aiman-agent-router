@@ -28,6 +28,16 @@ Task input
 
 The live runtime is **read-only**. Side-effecting tasks still stop at a human gate.
 
+### DeepSeek Harness proposal worker
+
+`aiman.deepseek-harness-headless` is a proposal-only local coding worker. The Router can select it for `code_analysis`, `patch_proposal`, `repo_debugging`, and `test_execution`. AgentDock forwards the task to the restricted Mac Work Node, which exports the registered workspace's committed `HEAD` into an ephemeral Git repository with **no remotes**, runs the fixed DeepSeek Harness `headless` profile there, and returns the final response, Git patch, changed-file names, and source/version/latency metadata.
+
+The source workspace is not modified by this worker. Applying a returned patch remains a separate bounded Work Node write/review step.
+
+```bash
+python -m aiman_agent_router live examples/live-deepseek-proposal.json
+```
+
 ### Run a static route
 
 ```bash
@@ -52,6 +62,7 @@ The first live reference path connects:
 - `kev.analyze` -> AIMAN-Kev v0.2c decision packet
 - `iwm.timeline.search` -> 聚身之家 verified Event Store
 - `agentdock.health` -> execution-fabric health snapshot
+- `deepseek.harness.propose` -> isolated Mac DeepSeek Harness proposal worker
 
 Each run persists a trace containing the original input, Kev provenance,
 TaskEnvelope, RoutingDecision, ExecutionPlan, execution rows, verification
@@ -73,6 +84,7 @@ against the current registry so routing drift is visible.
 3. environment credentials remain outside this repository
 4. live v0.2 execution is read-only
 5. canonical World Model writes still require Contribution -> PR -> CI -> Review
-6. traces are persisted and hash-checked
+6. DeepSeek Harness proposals run in an ephemeral no-remote Git snapshot; source-workspace writes are separate
+7. traces are persisted and hash-checked
 
 See `docs/architecture.md` for the full architecture.

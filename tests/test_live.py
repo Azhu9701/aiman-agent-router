@@ -64,6 +64,26 @@ class FakeBridge:
             )
         if operation == "kev.analyze":
             return BridgeResponse(operation=operation, result=kev_result())
+        if operation == "deepseek.harness.propose":
+            return BridgeResponse(
+                operation=operation,
+                result={
+                    "ok": True,
+                    "worker": "deepseek-harness.headless",
+                    "harnessVersion": "test",
+                    "workspace": arguments["workspace"],
+                    "sourceHead": "abc123",
+                    "isolation": "ephemeral_git_snapshot_no_remote",
+                    "final": "proposal ready",
+                    "reasoning": "",
+                    "proposalPatch": "diff --git a/a b/a",
+                    "proposalPatchTruncated": False,
+                    "changedFiles": ["a"],
+                    "harnessHeadChanged": False,
+                    "rc": 0,
+                    "elapsedMs": 1,
+                },
+            )
         if operation == "iwm.timeline.search":
             events = [] if self.empty_events else [
                 {
@@ -146,6 +166,41 @@ class LiveRuntimeTests(unittest.TestCase):
             self.assertEqual(
                 [name for name, _ in bridge.calls],
                 ["agentdock.health", "kev.analyze", "iwm.timeline.search"],
+            )
+
+    def test_live_runtime_routes_code_task_to_deepseek_without_kev(self) -> None:
+        bridge = FakeBridge()
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = LiveRouterRuntime(
+                self.router,
+                bridge,
+                TraceStore(tmp),
+            )
+            trace = runtime.run(
+                {
+                    "goal": "Inspect the router and propose a safe patch.",
+                    "domains": ["software"],
+                    "intent": "development",
+                    "required_capabilities": ["code_analysis", "patch_proposal"],
+                    "constraints": {
+                        "workspace": "aiman-agent-router",
+                        "timeout": 60,
+                    },
+                    "evidence_required": False,
+                    "freshness_required": False,
+                    "side_effects": False,
+                }
+            )
+            self.assertEqual(
+                trace["decision"]["selected"],
+                ["aiman.deepseek-harness-headless"],
+            )
+            self.assertTrue(trace["kev"]["skipped"])
+            self.assertEqual(trace["result"]["status"], "verified")
+            self.assertTrue(trace["result"]["verified"])
+            self.assertEqual(
+                [name for name, _ in bridge.calls],
+                ["agentdock.health", "deepseek.harness.propose"],
             )
 
     def test_live_runtime_fails_verification_when_iwm_returns_no_events(self) -> None:

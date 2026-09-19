@@ -40,6 +40,25 @@ class RouterTests(unittest.TestCase):
         self.assertIn("aiman.agentdock", targets)
         self.assertEqual(targets[-1], "aiman.router.verifier")
 
+    def test_routes_code_analysis_to_deepseek_harness(self) -> None:
+        result = self.router.route_and_plan(
+            {
+                "goal": "Inspect the router and propose a safe patch.",
+                "domains": ["software"],
+                "intent": "development",
+                "required_capabilities": ["code_analysis", "patch_proposal"],
+                "evidence_required": False,
+                "freshness_required": False,
+                "side_effects": False,
+            }
+        )
+        self.assertEqual(result["decision"]["status"], "ready")
+        self.assertEqual(
+            result["decision"]["selected"],
+            ["aiman.deepseek-harness-headless"],
+        )
+        self.assertFalse(result["decision"]["human_review_required"])
+
     def test_unknown_capability_fails_closed(self) -> None:
         result = self.router.route_and_plan(
             {

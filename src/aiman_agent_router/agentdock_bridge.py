@@ -172,6 +172,33 @@ def _iwm_search(arguments: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _deepseek_harness_propose(arguments: dict[str, Any]) -> dict[str, Any]:
+    workspace = str(arguments.get("workspace") or "").strip()
+    task = str(arguments.get("task") or "").strip()
+    if not workspace:
+        raise ValueError("workspace is required")
+    if not task:
+        raise ValueError("task is required")
+    timeout = max(10, min(int(arguments.get("timeout", 600)), 1800))
+    response = _run_json(
+        [SSH, "-F", SSH_CONFIG, MAC_WORKNODE],
+        input_text=json.dumps(
+            {
+                "action": "agent.deepseek.propose",
+                "workspace": workspace,
+                "task": task,
+                "timeout": timeout,
+            },
+            ensure_ascii=False,
+        ),
+        timeout=timeout + 30,
+    )
+    result = response.get("result")
+    if response.get("ok") is not True or not isinstance(result, dict):
+        raise RuntimeError("DeepSeek Harness worker returned an invalid response")
+    return result
+
+
 def _health() -> dict[str, Any]:
     mac = _run_json(
         [SSH, "-F", SSH_CONFIG, MAC_WORKNODE],
@@ -228,6 +255,8 @@ def dispatch(request: dict[str, Any]) -> dict[str, Any]:
         result = _kev_analyze(arguments)
     elif operation == "iwm.timeline.search":
         result = _iwm_search(arguments)
+    elif operation == "deepseek.harness.propose":
+        result = _deepseek_harness_propose(arguments)
     else:
         raise ValueError(f"operation is not allowlisted: {operation}")
 

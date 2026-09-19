@@ -25,6 +25,31 @@ class AgentDockBridgeTests(unittest.TestCase):
         self.assertEqual(result["operation"], "agentdock.health")
         self.assertEqual(result["result"]["executor"], "agentdock-test")
 
+    def test_deepseek_harness_operation_is_allowlisted(self) -> None:
+        with patch.object(
+            agentdock_bridge,
+            "_deepseek_harness_propose",
+            return_value={"ok": True, "worker": "deepseek-harness.headless"},
+        ) as mocked:
+            result = agentdock_bridge.dispatch(
+                {
+                    "operation": "deepseek.harness.propose",
+                    "arguments": {
+                        "workspace": "aiman-agent-router",
+                        "task": "inspect the router",
+                        "timeout": 60,
+                    },
+                }
+            )
+        mocked.assert_called_once_with(
+            {
+                "workspace": "aiman-agent-router",
+                "task": "inspect the router",
+                "timeout": 60,
+            }
+        )
+        self.assertTrue(result["result"]["ok"])
+
     def test_unknown_operation_fails_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "not allowlisted"):
             agentdock_bridge.dispatch(
