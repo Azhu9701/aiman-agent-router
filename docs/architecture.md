@@ -97,14 +97,38 @@ v0.1 performs a deterministic greedy capability cover:
 
 This deliberately avoids an unconstrained "LLM chooses any tool" architecture.
 
-## Next milestones
+## v0.2 live runtime
 
-### v0.2
-- Kev adapter emits route hints into TaskEnvelope.
-- Registry health/freshness probes.
-- Route trace persistence.
-- IWM and AgentDock live adapters.
-- policy engine for low-risk side effects.
+v0.2 adds an environment-neutral JSON bridge. The Router invokes only
+allowlisted operations and does not know SSH credentials, private hostnames, or
+MCP transport details.
+
+```text
+LiveRouterRuntime
+  -> agentdock.health
+  -> kev.analyze
+  -> merge route hints into TaskEnvelope
+  -> deterministic route + plan
+  -> iwm.timeline.search
+  -> verifier
+  -> TraceStore
+```
+
+The initial live runtime is deliberately read-only. A Kev event classification
+can add `event_query`; `needs_second_source=true` can add
+`evidence_gathering`. The registry still decides whether those capabilities
+have an eligible target.
+
+A trace records input, Kev model/contract provenance, deterministic decision,
+plan, execution-fabric snapshot, live outputs, verification, and a canonical
+SHA-256 hash. `replay` recomputes the deterministic route without repeating
+external actions.
+
+Environment-specific implementation belongs to AgentDock. The reference bridge
+supports only `agentdock.health`, `kev.analyze`, and
+`iwm.timeline.search`; any other operation fails closed.
+
+## Next milestones
 
 ### v0.3
 - MCP and A2A adapters.

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/router/trace-record.schema.json",
+  "title": "AIMAN Router Trace v0.2",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "started_at",
+    "completed_at",
+    "input",
+    "kev",
+    "task",
+    "decision",
+    "plan",
+    "execution",
+    "result",
+    "trace_id",
+    "trace_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "aiman-router-trace-v0.2"},
+    "trace_id": {"type": "string", "minLength": 1},
+    "trace_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "started_at": {"type": "string"},
+    "completed_at": {"type": "string"},
+    "input": {"type": "object"},
+    "execution_fabric": {"type": "object"},
+    "kev": {"type": "object"},
+    "task": {"type": "object"},
+    "decision": {"type": "object"},
+    "plan": {"type": "object"},
+    "execution": {"type": "array", "items": {"type": "object"}},
+    "result": {"type": "object"}
+  }
+}

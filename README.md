@@ -1,7 +1,75 @@
 # AIMAN Agent Router
 
-AIMAN 的任务路由与能力编排层。
+AIMAN 的任务路由、能力编排与可追溯执行控制层。
 
-核心边界：World Model 负责状态，Kev 提供判断提示，Router 负责路由与规划，AgentDock 负责执行。v0.1 采用 deterministic-first、fail-closed，并要求所有 side-effect 进入人审门。
+## Boundary
 
-See `docs/architecture.md` for the full design.
+- **World Model** owns domain state and evidence.
+- **AIMAN-Kev** provides compact decision signals and route hints.
+- **Agent Router** owns deterministic capability selection and execution planning.
+- **AgentDock** owns environment-specific execution across VPS, Mac worknodes, APIs, tools, and physical nodes.
+
+The Router never gets authority to bypass canonical-world-model review rules.
+
+## v0.2 live path
+
+```text
+Task input
+  -> AIMAN-Kev v0.2c
+  -> route hints
+  -> Capability Registry
+  -> deterministic RoutingDecision
+  -> ExecutionPlan
+  -> AgentDock bridge
+  -> Robotics IWM read
+  -> verification
+  -> immutable trace
+```
+
+The live runtime is **read-only**. Side-effecting tasks still stop at a human gate.
+
+### Run a static route
+
+```bash
+python -m aiman_agent_router route examples/robotics-event-research.json
+```
+
+### Run a live trace on an AgentDock node
+
+The environment supplies an allowlisted JSON bridge through
+`AIMAN_ROUTER_BRIDGE` (default:
+`/srv/agentdock/.local/bin/aiman-router-bridge`).
+
+```bash
+python -m aiman_agent_router live examples/live-viabot.json
+```
+
+The first live reference path connects:
+
+- `kev.analyze` -> AIMAN-Kev v0.2c decision packet
+- `iwm.timeline.search` -> 聚身之家 verified Event Store
+- `agentdock.health` -> execution-fabric health snapshot
+
+Each run persists a trace containing the original input, Kev provenance,
+TaskEnvelope, RoutingDecision, ExecutionPlan, execution rows, verification
+result, and a SHA-256 trace hash.
+
+### Replay routing
+
+```bash
+python -m aiman_agent_router replay /path/to/trace.json
+```
+
+Replay does not repeat external actions; it recomputes the deterministic route
+against the current registry so routing drift is visible.
+
+## Safety invariants
+
+1. deterministic routing before model-driven routing
+2. fail closed on unmapped capabilities
+3. environment credentials remain outside this repository
+4. live v0.2 execution is read-only
+5. canonical World Model writes still require Contribution -> PR -> CI -> Review
+6. traces are persisted and hash-checked
+
+See `docs/architecture.md` for the full architecture.

@@ -1,0 +1,23 @@
+{
+  "goal": "Find the canonical Viabot funding event and verify it from the Robotics Industry World Model.",
+  "domains": ["robotics"],
+  "intent": "industry_research",
+  "required_capabilities": [],
+  "constraints": {
+    "query": "Viabot",
+    "limit": 10
+  },
+  "evidence_required": true,
+  "freshness_required": true,
+  "side_effects": false,
+  "metadata": {
+    "kev_input": {
+      "content_id": "router-live-viabot-2026-09-17",
+      "title": "Viabot announces $24M Series A to scale robotics-as-a-service",
+      "summary": "Viabot announced a $24 million Series A financing round led by Walden International.",
+      "content": "Viabot announced a $24 million Series A financing round led by Walden International. The event concerns a robotics company and is relevant to the robotics industry timeline.",
+      "source_types": ["official", "industry_media"],
+      "source_count": 2
+    }
+  }
+}

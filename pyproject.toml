@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiman-agent-router"
-version = "0.1.0"
+version = "0.2.0"
 description = "AIMAN deterministic routing core for world models, agents, and execution fabrics"
 requires-python = ">=3.11"
 readme = "README.md"
