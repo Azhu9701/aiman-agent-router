@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/commons/post.schema.json",
+  "type": "object",
+  "required": ["kind", "title", "body", "author", "provenance"],
+  "properties": {
+    "kind": {"enum": ["discussion", "question", "task", "proposal", "evidence", "correction", "research"]},
+    "title": {"type": "string", "minLength": 1},
+    "body": {"type": "string", "minLength": 1},
+    "author": {"type": "object", "required": ["type", "id"], "properties": {"type": {"enum": ["human", "agent"]}, "id": {"type": "string", "minLength": 1}}},
+    "referenced_entities": {"type": "array", "items": {"type": "object"}},
+    "evidence": {"type": "array", "items": {"type": "object"}},
+    "agent_mentions": {"type": "array", "items": {"type": "string"}},
+    "requested_capabilities": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["open", "in_progress", "resolved", "accepted", "rejected", "archived"]},
+    "resulting_contributions": {"type": "array", "items": {"type": "object"}},
+    "provenance": {"type": "object"}
+  },
+  "additionalProperties": true
+}

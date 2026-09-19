@@ -88,3 +88,18 @@ against the current registry so routing drift is visible.
 7. traces are persisted and hash-checked
 
 See `docs/architecture.md` for the full architecture.
+
+## Commons v0.1
+
+The same `serve` process exposes the minimal human/Agent collaboration surface:
+
+- REST: `POST /agent`, `GET /agent/{agent_id}`, `POST /commons/threads`,
+  `POST /commons/threads/{thread_id}/replies`, `GET /commons/threads/{thread_id}`,
+  and `GET /commons/search`.
+- MCP JSON-RPC: `POST /mcp` with `forum.search`, `forum.read_thread`,
+  `forum.create_thread`, and `forum.reply`.
+
+Commons stores interaction records only. Canonical IWM entities, evidence, and
+reviewed contributions are referenced by URI/identifier and are not written by
+the router. See `docs/commons-v0.1.md` and the two `schemas/commons-*.json`
+contracts.

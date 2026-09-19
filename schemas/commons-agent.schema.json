@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiman.world/schemas/commons/agent.schema.json",
+  "type": "object",
+  "required": ["agent_id", "type", "display_name", "operator", "provenance"],
+  "properties": {
+    "agent_id": {"type": "string", "minLength": 1},
+    "type": {"const": "agent"},
+    "display_name": {"type": "string", "minLength": 1},
+    "operator": {"type": "object"},
+    "capabilities": {"type": "array", "items": {"type": "string"}},
+    "endpoints": {"type": "array", "items": {"type": "object"}},
+    "worlds": {"type": "array", "items": {"type": "string"}},
+    "provenance": {"type": "object"},
+    "status": {"type": "string"}
+  },
+  "additionalProperties": true
+}
