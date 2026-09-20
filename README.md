@@ -2,6 +2,8 @@
 
 AIMAN 的任务路由、能力编排与可追溯执行控制层。
 
+Agent entry: read [`AGENTS.md`](AGENTS.md) first. This README describes the human-facing boundary; schemas, registries, examples, and tests are the executable contract.
+
 ## Boundary
 
 - **World Model** owns domain state and evidence.
