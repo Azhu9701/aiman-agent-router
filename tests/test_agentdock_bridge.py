@@ -69,6 +69,21 @@ class AgentDockBridgeTests(unittest.TestCase):
         mocked.assert_called_once()
         self.assertEqual(result["result"]["safe_relation"], "same_platform")
 
+    def test_robot_lineage_anchor_aliases_include_chinese_dof(self) -> None:
+        anchors = agentdock_bridge._robot_anchor_queries(
+            {
+                "name": "Probe",
+                "specs": {
+                    "total_dof": 40,
+                    "height_cm": 169,
+                    "weight_kg": 69,
+                },
+            }
+        )
+        self.assertIn("40个自由度", anchors)
+        self.assertIn("40DOF", anchors)
+        self.assertIn("169cm", anchors)
+
     def test_robot_lineage_admission_shortlists_and_fails_closed(self) -> None:
         search_payloads = {
             "40DOF": {

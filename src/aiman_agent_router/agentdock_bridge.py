@@ -195,13 +195,23 @@ def _production_api(path: str, *, timeout: int = 60) -> dict[str, Any]:
 
 
 def _specs_from_robot(robot: dict[str, Any]) -> dict[str, Any]:
+    aliases = {
+        "height_cm": "height",
+        "height_mm": "height",
+        "weight_kg": "weight",
+        "total_dof": "dof",
+        "max_speed_mps": "speed",
+        "charging_time_h": "charge_time",
+        "compute_tops": "compute",
+    }
     specs = robot.get("specs")
     if isinstance(specs, dict):
-        return {
-            str(key): value
-            for key, value in specs.items()
-            if str(key).strip() and value not in (None, "", [])
-        }
+        out: dict[str, Any] = {}
+        for raw_key, value in specs.items():
+            key = aliases.get(str(raw_key).strip(), str(raw_key).strip())
+            if key and value not in (None, "", []):
+                out[key] = value
+        return out
 
     evidence = robot.get("specEvidence")
     if not isinstance(evidence, list):
@@ -278,9 +288,23 @@ def _robot_anchor_queries(robot: dict[str, Any]) -> list[str]:
     for key in priority:
         if key not in specs:
             continue
-        anchor = _search_anchor_for_spec(key, specs[key])
-        if anchor and anchor not in anchors:
-            anchors.append(anchor)
+        value = specs[key]
+        generated: list[str] = []
+        if key == "dof" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            number = f"{float(value):g}"
+            generated.extend([number + "个自由度", number + "DOF"])
+        elif key == "height" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            number = f"{float(value):g}"
+            generated.extend([number + "cm", number])
+        else:
+            anchor = _search_anchor_for_spec(key, value)
+            if anchor:
+                generated.append(anchor)
+        for anchor in generated:
+            if anchor and anchor not in anchors:
+                anchors.append(anchor)
+            if len(anchors) >= 6:
+                break
         if len(anchors) >= 6:
             break
 
