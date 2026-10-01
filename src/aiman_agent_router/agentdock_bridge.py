@@ -7,9 +7,7 @@ import shlex
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from typing import Any
 
 DECISION_MCP = os.environ.get(
@@ -27,13 +25,6 @@ EMIBOT_OPS = os.environ.get(
     "AIMAN_EMIBOT_OPS",
     "/usr/local/sbin/emibot-ops",
 )
-LAYA_URL = os.environ.get(
-    "AIMAN_LAYA_URL",
-    "http://127.0.0.1:8000/v1/systemone",
-)
-LAYA_API_KEY = os.environ.get("AIMAN_LAYA_API_KEY", "")
-LAYA_MODEL = os.environ.get("AIMAN_LAYA_MODEL", "")
-
 
 def _parse_object(text: str) -> dict[str, Any]:
     value = json.loads(text)
@@ -64,7 +55,7 @@ def _run_json(
 
 
 def _decision_tool(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    if tool_name not in {"decision_analyze", "lineage_analyze", "lineage_metrics"}:
+    if tool_name not in {"systemone_analyze", "decision_analyze", "lineage_analyze", "lineage_metrics"}:
         raise ValueError(f"decision tool is not allowlisted: {tool_name}")
 
     process = subprocess.Popen(
@@ -168,59 +159,17 @@ def _decision_tool(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 def _laya_analyze(arguments: dict[str, Any]) -> dict[str, Any]:
     state = arguments.get("state")
     questions = arguments.get("questions")
-    if not isinstance(state, (str, dict, list)):
-        raise ValueError("Laya state must be a string, object, or array")
+    if state is None:
+        raise ValueError("Laya state is required")
     if not isinstance(questions, dict) or not questions:
         raise ValueError("Laya questions must be a non-empty object")
 
-    body: dict[str, Any] = {
-        "state": state,
-        "questions": questions,
-    }
-    for key in (
-        "model",
-        "task",
-        "lang",
-        "lang_guess",
-        "max_len",
-        "head_max_len",
-        "min_confidence",
-    ):
-        if key in arguments and arguments[key] is not None:
-            body[key] = arguments[key]
-    if LAYA_MODEL and "model" not in body:
-        body["model"] = LAYA_MODEL
-
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-    if LAYA_API_KEY:
-        headers["Authorization"] = "Bearer " + LAYA_API_KEY
-
-    request = urllib.request.Request(
-        LAYA_URL,
-        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
-            f"Laya HTTP {exc.code}: {detail[:1000]}"
-        ) from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Laya request failed: {exc.reason}") from exc
-
-    if not isinstance(payload, dict):
-        raise RuntimeError("Laya response must be an object")
-    if not isinstance(payload.get("answers"), dict):
-        raise RuntimeError("Laya response is missing answers")
-    return payload
-
+    # Laya is hosted on the Mac behind the existing Decision MCP stdio
+    # boundary. The router never opens a direct HTTP/Tailscale connection
+    # to the model runtime.
+    payload = dict(arguments)
+    payload.setdefault("mode", "shadow")
+    return _decision_tool("systemone_analyze", payload)
 
 def _kev_analyze(arguments: dict[str, Any]) -> dict[str, Any]:
     return _decision_tool("decision_analyze", arguments)
