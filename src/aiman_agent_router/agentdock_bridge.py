@@ -26,7 +26,6 @@ EMIBOT_OPS = os.environ.get(
     "/usr/local/sbin/emibot-ops",
 )
 
-
 def _parse_object(text: str) -> dict[str, Any]:
     value = json.loads(text)
     if not isinstance(value, dict):
@@ -56,7 +55,7 @@ def _run_json(
 
 
 def _decision_tool(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    if tool_name not in {"decision_analyze", "lineage_analyze", "lineage_metrics"}:
+    if tool_name not in {"systemone_analyze", "decision_analyze", "lineage_analyze", "lineage_metrics"}:
         raise ValueError(f"decision tool is not allowlisted: {tool_name}")
 
     process = subprocess.Popen(
@@ -156,6 +155,21 @@ def _decision_tool(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             except subprocess.TimeoutExpired:
                 process.kill()
 
+
+def _laya_analyze(arguments: dict[str, Any]) -> dict[str, Any]:
+    state = arguments.get("state")
+    questions = arguments.get("questions")
+    if state is None:
+        raise ValueError("Laya state is required")
+    if not isinstance(questions, dict) or not questions:
+        raise ValueError("Laya questions must be a non-empty object")
+
+    # Laya is hosted on the Mac behind the existing Decision MCP stdio
+    # boundary. The router never opens a direct HTTP/Tailscale connection
+    # to the model runtime.
+    payload = dict(arguments)
+    payload.setdefault("mode", "shadow")
+    return _decision_tool("systemone_analyze", payload)
 
 def _kev_analyze(arguments: dict[str, Any]) -> dict[str, Any]:
     return _decision_tool("decision_analyze", arguments)
@@ -592,6 +606,8 @@ def dispatch(request: dict[str, Any]) -> dict[str, Any]:
 
     if operation == "agentdock.health":
         result = _health()
+    elif operation == "decision.analyze":
+        result = _laya_analyze(arguments)
     elif operation == "kev.analyze":
         result = _kev_analyze(arguments)
     elif operation == "kev.lineage.analyze":
