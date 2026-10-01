@@ -19,7 +19,7 @@ The Router never gets authority to bypass canonical-world-model review rules.
 Task input
   -> Laya System-One
   -> AIMAN router shadow + Kev-compatible robotics decisions
-  -> route hints
+  -> existing Kev v0.2c compatibility hints (robotics only)
   -> Capability Registry
   -> deterministic RoutingDecision
   -> ExecutionPlan
@@ -62,7 +62,7 @@ python -m aiman_agent_router live examples/live-viabot.json
 
 The first live reference path connects:
 
-- `decision.analyze` -> local Laya `/v1/systemone` (primary shadow decision path)
+- `decision.analyze` -> Mac Decision MCP `systemone_analyze` -> loopback-only Laya `/v1/systemone` (shadow observation)
 - `kev.analyze` -> AIMAN-Kev v0.2c compatibility fallback during migration
 - `iwm.timeline.search` -> 聚身之家 verified Event Store
 - `agentdock.health` -> execution-fabric health snapshot
@@ -116,8 +116,10 @@ domain-specialized decision data, schemas, evaluation fixtures, and future
 fine-tuned checkpoint rather than as a separate runtime stack.
 
 The generic Laya outputs (worker, risk, confirmation, web and world-model need)
-are recorded in shadow mode and do **not** authorize execution. Robotics
-Kev-compatible decisions may preserve the existing read-only capability hints,
-which still pass through deterministic routing and the human-gate boundary.
+and its Kev-compatible robotics answers are recorded in shadow mode and do
+**not** authorize execution or mutate route hints in Phase 1. Existing
+AIMAN-Kev v0.2c remains the temporary compatibility hint source for the
+read-only robotics route, and every hint still passes through deterministic
+routing and the human-gate boundary.
 
 See `docs/LAYA_KEV_MIGRATION.md`.
