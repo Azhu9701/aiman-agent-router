@@ -24,27 +24,29 @@ This branch adds two question profiles:
 - **Router shadow**: worker, risk level, confirmation need, web need, world-model need.
 - **Kev compatibility**: the existing robotics decisions (content/event/timeline/source judgments) expressed with Laya `choice`, `score`, and `noul` primitives.
 
-Only the legacy-compatible route hints are eligible to affect the existing read-only route, and they still pass through the deterministic capability registry. The generic Router answers are recorded only for comparison and training-data collection.
+All Laya answers are observational in Phase 1. They do not affect route hints or execution. For robotics tasks, the existing AIMAN-Kev v0.2c path remains the temporary compatibility hint source while Laya is evaluated side-by-side. Those existing hints still pass through the deterministic capability registry.
 
 ## Runtime
 
-Run upstream Laya's native HTTP server:
+Laya runs on the Mac inside an isolated Python 3.12 environment and is exposed
+only on loopback. The Router does **not** connect to that HTTP service directly.
 
-```bash
-python -m pip install "laya[serve]"
-LAYA_PRELOAD=1 laya-serve
+```text
+Router on AgentDock VPS
+  -> AIMAN_DECISION_MCP (SSH stdio)
+  -> Mac Decision MCP systemone_analyze
+  -> http://127.0.0.1:8014/v1/systemone
+  -> Laya
 ```
 
-AgentDock bridge configuration:
+The Mac Decision MCP remains the security boundary. No public listener and no
+Tailscale-facing Laya HTTP port are required. The local runtime is configured
+to use cached model artifacts offline after initial installation.
 
-```bash
-export AIMAN_LAYA_URL=http://127.0.0.1:8000/v1/systemone
-# Optional:
-export AIMAN_LAYA_API_KEY=...
-export AIMAN_LAYA_MODEL=multilingual
-```
-
-For a Mac-hosted model, point `AIMAN_LAYA_URL` at the allowlisted/Tailscale-reachable service rather than exposing it publicly.
+The persistent service lifecycle is intentionally separate from Router code.
+If the remote worknode session cannot register a user LaunchAgent, the service
+must be started by an already-authorized Mac service manager or interactive
+user session; the Router must not escalate privileges to achieve persistence.
 
 ## Kev assets that remain valuable
 
