@@ -44,7 +44,7 @@ class DecisionLayerTests(unittest.TestCase):
             2,
         )
 
-    def test_laya_normalization_emits_legacy_route_hints(self) -> None:
+    def test_laya_normalization_keeps_route_hints_empty_in_phase_one(self) -> None:
         normalized = normalize_laya_result(
             {
                 "answers": {
@@ -73,7 +73,7 @@ class DecisionLayerTests(unittest.TestCase):
         self.assertEqual(normalized["provider"], "laya")
         self.assertEqual(
             normalized["route_hints"]["required_capabilities"],
-            ["event_query", "evidence_gathering"],
+            [],
         )
         self.assertEqual(
             normalized["router_shadow"]["worker"]["answer"],
