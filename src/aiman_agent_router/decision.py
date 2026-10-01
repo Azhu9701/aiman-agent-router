@@ -206,16 +206,18 @@ def normalize_laya_result(
         if isinstance(answer, dict)
     }
 
+    # Phase 1 is observation-only. In particular, do not infer boolean
+    # semantics from a raw noul scalar until the AIMAN-specific contract is
+    # calibrated against Future Gold.
     route_hints: list[str] = []
-    if include_kev:
-        is_event = normalized_answers.get("is_event", {}).get("answer")
-        second_source = normalized_answers.get("needs_second_source", {}).get("answer")
-        if isinstance(is_event, (int, float)) and float(is_event) >= 0.5:
-            route_hints.append("event_query")
-        if isinstance(second_source, (int, float)) and float(second_source) >= 0.5:
-            route_hints.append("evidence_gathering")
 
+    upstream_provenance = result.get("provenance")
+    upstream_provenance = (
+        upstream_provenance if isinstance(upstream_provenance, dict) else {}
+    )
     routing = result.get("routing")
+    if not isinstance(routing, dict):
+        routing = upstream_provenance.get("routing")
     routing = routing if isinstance(routing, dict) else {}
     usage = result.get("usage")
     usage = usage if isinstance(usage, dict) else {}
@@ -240,8 +242,14 @@ def normalize_laya_result(
         },
         "provenance": {
             "engine": "laya",
-            "model": routing.get("model") or result.get("model"),
+            "model": (
+                upstream_provenance.get("model")
+                or routing.get("model")
+                or result.get("model")
+            ),
             "routing": routing,
+            "transport": result.get("transport"),
+            "endpoint": result.get("endpoint"),
             "usage": usage,
         },
     }
