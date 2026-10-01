@@ -237,7 +237,7 @@ class LiveRuntimeTests(unittest.TestCase):
             self.assertTrue(saved["trace_hash"])
             self.assertEqual(
                 [name for name, _ in bridge.calls],
-                ["agentdock.health", "decision.analyze", "iwm.timeline.search"],
+                ["agentdock.health", "decision.analyze", "kev.analyze", "iwm.timeline.search"],
             )
 
     def test_live_runtime_routes_code_task_to_deepseek_without_kev(self) -> None:
