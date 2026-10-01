@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .bridge import BridgeError, CommandBridge
+from .decision import build_laya_request, normalize_laya_result, uses_kev_compat_profile
 from .models import TaskEnvelope
 from .router import AgentRouter
 from .trace import TraceStore
@@ -101,6 +102,7 @@ class LiveRouterRuntime:
             "started_at": _utc_now(),
             "input": copy.deepcopy(payload),
             "execution_fabric": {},
+            "decision_model": {},
             "kev": {},
             "task": {},
             "decision": {},
@@ -118,25 +120,58 @@ class LiveRouterRuntime:
                 "error": str(exc),
             }
 
-        metadata = working.get("metadata")
-        use_kev = (
-            "robotics" in base_task.domains
-            or (
-                isinstance(metadata, dict)
-                and isinstance(metadata.get("kev_input"), dict)
-            )
+        use_kev = uses_kev_compat_profile(working)
+        laya_request = build_laya_request(
+            working,
+            base_task.task_id,
+            include_kev=use_kev,
         )
-        if use_kev:
-            kev_args = self._kev_arguments(working, base_task.task_id)
-            kev_response = self.bridge.call("kev.analyze", kev_args)
-            kev = normalize_kev_result(kev_response.result)
-            trace["kev"] = kev
-            self._apply_route_hints(working, kev)
-        else:
-            trace["kev"] = {
-                "skipped": True,
-                "reason": "not_applicable_for_task_domain",
+        try:
+            laya_response = self.bridge.call("decision.analyze", laya_request)
+            decision_model = normalize_laya_result(
+                laya_response.result,
+                include_kev=use_kev,
+            )
+            trace["decision_model"] = decision_model
+            if use_kev:
+                # Compatibility field: old trace consumers may still read "kev".
+                trace["kev"] = decision_model
+                self._apply_route_hints(working, decision_model)
+            else:
+                trace["kev"] = {
+                    "skipped": True,
+                    "reason": "kev_compat_profile_not_applicable",
+                    "decision_provider": "laya",
+                }
+        except (BridgeError, ValueError) as laya_exc:
+            trace["decision_model"] = {
+                "provider": "laya",
+                "mode": "shadow",
+                "production_effect": "none",
+                "error": str(laya_exc),
             }
+            if use_kev:
+                # Temporary migration fallback. It preserves the existing
+                # robotics read-only route while Laya is being validated.
+                try:
+                    kev_args = self._kev_arguments(working, base_task.task_id)
+                    kev_response = self.bridge.call("kev.analyze", kev_args)
+                    kev = normalize_kev_result(kev_response.result)
+                    kev["fallback_reason"] = "laya_unavailable_or_invalid"
+                    trace["kev"] = kev
+                    self._apply_route_hints(working, kev)
+                except (BridgeError, ValueError) as kev_exc:
+                    trace["kev"] = {
+                        "provider": "aiman-kev-v0.2c",
+                        "mode": "shadow",
+                        "production_effect": "none",
+                        "error": str(kev_exc),
+                    }
+            else:
+                trace["kev"] = {
+                    "skipped": True,
+                    "reason": "kev_compat_profile_not_applicable",
+                }
         routed = self.router.route_and_plan(working)
         trace["task"] = routed["task"]
         trace["decision"] = routed["decision"]
