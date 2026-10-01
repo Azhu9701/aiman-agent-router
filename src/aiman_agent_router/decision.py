@@ -169,6 +169,9 @@ def build_laya_request(
     return {
         "state": state,
         "questions": questions,
+        # AIMAN serves bilingual tasks and pre-caches this checkpoint on the
+        # Mac. Pinning it avoids offline auto-routing to an uncached model.
+        "model": "multilingual",
     }
 
 
