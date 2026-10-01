@@ -7,7 +7,9 @@ import shlex
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 from typing import Any
 
 DECISION_MCP = os.environ.get(
@@ -25,6 +27,12 @@ EMIBOT_OPS = os.environ.get(
     "AIMAN_EMIBOT_OPS",
     "/usr/local/sbin/emibot-ops",
 )
+LAYA_URL = os.environ.get(
+    "AIMAN_LAYA_URL",
+    "http://127.0.0.1:8000/v1/systemone",
+)
+LAYA_API_KEY = os.environ.get("AIMAN_LAYA_API_KEY", "")
+LAYA_MODEL = os.environ.get("AIMAN_LAYA_MODEL", "")
 
 
 def _parse_object(text: str) -> dict[str, Any]:
@@ -155,6 +163,63 @@ def _decision_tool(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 process.kill()
+
+
+def _laya_analyze(arguments: dict[str, Any]) -> dict[str, Any]:
+    state = arguments.get("state")
+    questions = arguments.get("questions")
+    if not isinstance(state, (str, dict, list)):
+        raise ValueError("Laya state must be a string, object, or array")
+    if not isinstance(questions, dict) or not questions:
+        raise ValueError("Laya questions must be a non-empty object")
+
+    body: dict[str, Any] = {
+        "state": state,
+        "questions": questions,
+    }
+    for key in (
+        "model",
+        "task",
+        "lang",
+        "lang_guess",
+        "max_len",
+        "head_max_len",
+        "min_confidence",
+    ):
+        if key in arguments and arguments[key] is not None:
+            body[key] = arguments[key]
+    if LAYA_MODEL and "model" not in body:
+        body["model"] = LAYA_MODEL
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if LAYA_API_KEY:
+        headers["Authorization"] = "Bearer " + LAYA_API_KEY
+
+    request = urllib.request.Request(
+        LAYA_URL,
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Laya HTTP {exc.code}: {detail[:1000]}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Laya request failed: {exc.reason}") from exc
+
+    if not isinstance(payload, dict):
+        raise RuntimeError("Laya response must be an object")
+    if not isinstance(payload.get("answers"), dict):
+        raise RuntimeError("Laya response is missing answers")
+    return payload
 
 
 def _kev_analyze(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -592,6 +657,8 @@ def dispatch(request: dict[str, Any]) -> dict[str, Any]:
 
     if operation == "agentdock.health":
         result = _health()
+    elif operation == "decision.analyze":
+        result = _laya_analyze(arguments)
     elif operation == "kev.analyze":
         result = _kev_analyze(arguments)
     elif operation == "kev.lineage.analyze":
