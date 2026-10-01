@@ -39,6 +39,7 @@ class DecisionLayerTests(unittest.TestCase):
         )
         self.assertIn("worker", request["questions"])
         self.assertIn("is_event", request["questions"])
+        self.assertEqual(request["model"], "multilingual")
         self.assertEqual(
             request["state"]["robotics_content"]["source_count"],
             2,
