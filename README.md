@@ -7,7 +7,7 @@ Agent entry: read [`AGENTS.md`](AGENTS.md) first. This README describes the huma
 ## Boundary
 
 - **World Model** owns domain state and evidence.
-- **AIMAN-Kev** provides compact decision signals and route hints.
+- **Laya + AIMAN-Kev specialization** provides local System-One decisions; generic routing decisions remain shadow/advisory until separately promoted.
 - **Agent Router** owns deterministic capability selection and execution planning.
 - **AgentDock** owns environment-specific execution across VPS, Mac worknodes, APIs, tools, and physical nodes.
 
@@ -17,7 +17,8 @@ The Router never gets authority to bypass canonical-world-model review rules.
 
 ```text
 Task input
-  -> AIMAN-Kev v0.2c
+  -> Laya System-One
+  -> AIMAN router shadow + Kev-compatible robotics decisions
   -> route hints
   -> Capability Registry
   -> deterministic RoutingDecision
@@ -61,7 +62,8 @@ python -m aiman_agent_router live examples/live-viabot.json
 
 The first live reference path connects:
 
-- `kev.analyze` -> AIMAN-Kev v0.2c decision packet
+- `decision.analyze` -> local Laya `/v1/systemone` (primary shadow decision path)
+- `kev.analyze` -> AIMAN-Kev v0.2c compatibility fallback during migration
 - `iwm.timeline.search` -> 聚身之家 verified Event Store
 - `agentdock.health` -> execution-fabric health snapshot
 - `deepseek.harness.propose` -> isolated Mac DeepSeek Harness proposal worker
@@ -105,3 +107,17 @@ Commons stores interaction records only. Canonical IWM entities, evidence, and
 reviewed contributions are referenced by URI/identifier and are not written by
 the router. See `docs/commons-v0.1.md` and the two `schemas/commons-*.json`
 contracts.
+
+
+## Laya / Kev migration
+
+Laya is the generic local System-One runtime. Kev is retained as AIMAN's
+domain-specialized decision data, schemas, evaluation fixtures, and future
+fine-tuned checkpoint rather than as a separate runtime stack.
+
+The generic Laya outputs (worker, risk, confirmation, web and world-model need)
+are recorded in shadow mode and do **not** authorize execution. Robotics
+Kev-compatible decisions may preserve the existing read-only capability hints,
+which still pass through deterministic routing and the human-gate boundary.
+
+See `docs/LAYA_KEV_MIGRATION.md`.
