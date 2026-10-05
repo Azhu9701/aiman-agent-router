@@ -347,7 +347,7 @@ class LiveRuntimeTests(unittest.TestCase):
             )
             self.assertEqual(
                 [name for name, _ in bridge.calls],
-                ["agentdock.health", "context.scout"],
+                ["agentdock.health", "decision.analyze", "context.scout"],
             )
 
     def test_context_scout_can_precede_deepseek_and_pass_citations_forward(self) -> None:
@@ -387,7 +387,7 @@ class LiveRuntimeTests(unittest.TestCase):
             )
             self.assertEqual(
                 [name for name, _ in bridge.calls],
-                ["agentdock.health", "context.scout", "deepseek.harness.propose"],
+                ["agentdock.health", "decision.analyze", "context.scout", "deepseek.harness.propose"],
             )
 
     def test_context_scout_unavailable_returns_non_blocking_fallback(self) -> None:
