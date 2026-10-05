@@ -16,6 +16,76 @@ from aiman_agent_router.router import AgentRouter
 from aiman_agent_router.trace import TraceStore
 
 
+def laya_result(*, needs_second_source: bool = False) -> dict:
+    return {
+        "answers": {
+            "worker": {
+                "type": "choice",
+                "choice": "vps",
+                "confidence": 0.8,
+                "probabilities": {"vps": 0.8, "none": 0.2},
+            },
+            "risk_level": {
+                "type": "score",
+                "score": 0.2,
+                "confidence": 0.7,
+            },
+            "needs_confirmation": {
+                "type": "noul",
+                "noul": 0.05,
+                "confidence": 0.9,
+            },
+            "needs_web": {
+                "type": "noul",
+                "noul": 0.1,
+                "confidence": 0.8,
+            },
+            "needs_world_model": {
+                "type": "noul",
+                "noul": 0.98,
+                "confidence": 0.95,
+            },
+            "content_type": {
+                "type": "choice",
+                "choice": "event",
+                "confidence": 0.94,
+            },
+            "is_event": {
+                "type": "noul",
+                "noul": 0.99,
+                "confidence": 0.98,
+            },
+            "event_type": {
+                "type": "choice",
+                "choice": "funding",
+                "confidence": 0.93,
+            },
+            "timeline_worthy": {
+                "type": "noul",
+                "noul": 0.97,
+                "confidence": 0.95,
+            },
+            "commercialization_stage": {
+                "type": "choice",
+                "choice": "not_applicable",
+                "confidence": 0.82,
+            },
+            "source_quality": {
+                "type": "score",
+                "score": 2.9,
+                "confidence": 0.91,
+            },
+            "needs_second_source": {
+                "type": "noul",
+                "noul": 0.91 if needs_second_source else 0.08,
+                "confidence": 0.9,
+            },
+        },
+        "routing": {"model": "multilingual"},
+        "usage": {"input_tokens": 120, "output_tokens": 0},
+    }
+
+
 def kev_result(*, needs_second_source: bool = False) -> dict:
     def row(answer, probability=0.99):
         return {
@@ -70,6 +140,8 @@ class FakeBridge:
                 operation=operation,
                 result={"ok": True, "executor": "agentdock-test"},
             )
+        if operation == "decision.analyze":
+            return BridgeResponse(operation=operation, result=laya_result())
         if operation == "kev.analyze":
             return BridgeResponse(operation=operation, result=kev_result())
         if operation == "context.scout":
@@ -207,7 +279,7 @@ class LiveRuntimeTests(unittest.TestCase):
             self.assertTrue(saved["trace_hash"])
             self.assertEqual(
                 [name for name, _ in bridge.calls],
-                ["agentdock.health", "kev.analyze", "iwm.timeline.search"],
+                ["agentdock.health", "decision.analyze", "kev.analyze", "iwm.timeline.search"],
             )
 
     def test_live_runtime_routes_code_task_to_deepseek_without_kev(self) -> None:
@@ -242,7 +314,7 @@ class LiveRuntimeTests(unittest.TestCase):
             self.assertTrue(trace["result"]["verified"])
             self.assertEqual(
                 [name for name, _ in bridge.calls],
-                ["agentdock.health", "deepseek.harness.propose"],
+                ["agentdock.health", "decision.analyze", "deepseek.harness.propose"],
             )
 
     def test_live_runtime_executes_and_verifies_context_scout(self) -> None:

@@ -7,7 +7,7 @@ Agent entry: read [`AGENTS.md`](AGENTS.md) first. This README describes the huma
 ## Boundary
 
 - **World Model** owns domain state and evidence.
-- **AIMAN-Kev** provides compact decision signals and route hints.
+- **Laya + AIMAN-Kev specialization** provides local System-One decisions; generic routing decisions remain shadow/advisory until separately promoted.
 - **Agent Router** owns deterministic capability selection and execution planning.
 - **AgentDock** owns environment-specific execution across VPS, Mac worknodes, APIs, tools, and physical nodes.
 
@@ -17,8 +17,9 @@ The Router never gets authority to bypass canonical-world-model review rules.
 
 ```text
 Task input
-  -> AIMAN-Kev v0.2c
-  -> route hints
+  -> Laya System-One
+  -> AIMAN router shadow + Kev-compatible robotics decisions
+  -> existing Kev v0.2c compatibility hints (robotics only)
   -> Capability Registry
   -> deterministic RoutingDecision
   -> ExecutionPlan
@@ -85,7 +86,8 @@ python -m aiman_agent_router live examples/live-viabot.json
 
 The first live reference path connects:
 
-- `kev.analyze` -> AIMAN-Kev v0.2c decision packet
+- `decision.analyze` -> Mac Decision MCP `systemone_analyze` -> loopback-only Laya `/v1/systemone` (shadow observation)
+- `kev.analyze` -> AIMAN-Kev v0.2c compatibility fallback during migration
 - `iwm.timeline.search` -> 聚身之家 verified Event Store
 - `agentdock.health` -> execution-fabric health snapshot
 - `deepseek.harness.propose` -> isolated Mac DeepSeek Harness proposal worker
@@ -130,3 +132,19 @@ Commons stores interaction records only. Canonical IWM entities, evidence, and
 reviewed contributions are referenced by URI/identifier and are not written by
 the router. See `docs/commons-v0.1.md` and the two `schemas/commons-*.json`
 contracts.
+
+
+## Laya / Kev migration
+
+Laya is the generic local System-One runtime. Kev is retained as AIMAN's
+domain-specialized decision data, schemas, evaluation fixtures, and future
+fine-tuned checkpoint rather than as a separate runtime stack.
+
+The generic Laya outputs (worker, risk, confirmation, web and world-model need)
+and its Kev-compatible robotics answers are recorded in shadow mode and do
+**not** authorize execution or mutate route hints in Phase 1. Existing
+AIMAN-Kev v0.2c remains the temporary compatibility hint source for the
+read-only robotics route, and every hint still passes through deterministic
+routing and the human-gate boundary.
+
+See `docs/LAYA_KEV_MIGRATION.md`.
