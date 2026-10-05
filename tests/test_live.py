@@ -9,7 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from aiman_agent_router.bridge import BridgeResponse
+from aiman_agent_router.bridge import BridgeError, BridgeResponse
 from aiman_agent_router.live import LiveRouterRuntime, normalize_kev_result
 from aiman_agent_router.registry import CapabilityRegistry
 from aiman_agent_router.router import AgentRouter
@@ -51,10 +51,17 @@ def kev_result(*, needs_second_source: bool = False) -> dict:
 
 
 class FakeBridge:
-    def __init__(self, *, empty_events: bool = False, scout_fail: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        empty_events: bool = False,
+        scout_fail: bool = False,
+        scout_bridge_error: bool = False,
+    ) -> None:
         self.calls: list[tuple[str, dict]] = []
         self.empty_events = empty_events
         self.scout_fail = scout_fail
+        self.scout_bridge_error = scout_bridge_error
 
     def call(self, operation: str, arguments: dict) -> BridgeResponse:
         self.calls.append((operation, arguments))
@@ -66,6 +73,8 @@ class FakeBridge:
         if operation == "kev.analyze":
             return BridgeResponse(operation=operation, result=kev_result())
         if operation == "context.scout":
+            if self.scout_bridge_error:
+                raise BridgeError("simulated scout transport failure")
             if self.scout_fail:
                 return BridgeResponse(
                     operation=operation,
@@ -327,6 +336,32 @@ class LiveRuntimeTests(unittest.TestCase):
             )
             self.assertEqual(trace["result"]["status"], "fallback")
             self.assertFalse(trace["result"]["verified"])
+            self.assertEqual(
+                trace["result"]["verification"]["fallback"],
+                "normal_repository_inspection",
+            )
+
+    def test_context_scout_bridge_error_is_bounded_fallback(self) -> None:
+        bridge = FakeBridge(scout_bridge_error=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = LiveRouterRuntime(self.router, bridge, TraceStore(tmp))
+            trace = runtime.run(
+                {
+                    "goal": "Locate the routing implementation.",
+                    "domains": ["software"],
+                    "intent": "development",
+                    "required_capabilities": ["repository_context"],
+                    "constraints": {"workspace": "aiman-agent-router"},
+                    "evidence_required": False,
+                    "freshness_required": False,
+                    "side_effects": False,
+                }
+            )
+            self.assertEqual(trace["result"]["status"], "fallback")
+            self.assertEqual(
+                trace["result"]["verification"]["context_scout"]["code"],
+                "SCOUT_BRIDGE_UNAVAILABLE",
+            )
             self.assertEqual(
                 trace["result"]["verification"]["fallback"],
                 "normal_repository_inspection",

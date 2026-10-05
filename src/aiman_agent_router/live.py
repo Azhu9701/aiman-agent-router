@@ -181,17 +181,30 @@ class LiveRouterRuntime:
                 continue
 
             if identifier == "aiman.context-scout":
-                response = self.bridge.call(
-                    "context.scout",
-                    self._context_scout_arguments(routed["task"]),
-                )
-                outputs[identifier] = response.result
+                try:
+                    response = self.bridge.call(
+                        "context.scout",
+                        self._context_scout_arguments(routed["task"]),
+                    )
+                    scout_result = response.result
+                    operation = response.operation
+                except BridgeError:
+                    scout_result = {
+                        "ok": False,
+                        "code": "SCOUT_BRIDGE_UNAVAILABLE",
+                        "message": "Context Scout execution bridge is unavailable",
+                        "read_only": True,
+                        "production_effect": "none",
+                        "fallback": "normal_repository_inspection",
+                    }
+                    operation = "context.scout"
+                outputs[identifier] = scout_result
                 execution_rows.append(
                     {
                         "target": identifier,
-                        "operation": response.operation,
-                        "status": "completed" if response.result.get("ok") is True else "fallback",
-                        "fallback": response.result.get("fallback"),
+                        "operation": operation,
+                        "status": "completed" if scout_result.get("ok") is True else "fallback",
+                        "fallback": scout_result.get("fallback"),
                     }
                 )
                 continue
