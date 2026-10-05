@@ -40,6 +40,30 @@ The source workspace is not modified by this worker. Applying a returned patch r
 python -m aiman_agent_router live examples/live-deepseek-proposal.json
 ```
 
+### Local Context Scout
+
+`aiman.context-scout` is the read-only repository preflight worker. It runs
+FastContext on the Mac Studio against an ephemeral export of a registered
+workspace's committed `HEAD`; the live working tree, untracked files, remotes,
+arbitrary shell, production access, and writes are outside its boundary.
+
+Request it explicitly with `repository_context` or `citation_lookup`:
+
+```bash
+python -m aiman_agent_router live examples/context-scout.json
+```
+
+A successful response contains source HEAD plus verified file/line citations.
+If the local model is unavailable, times out, or produces no verifiable
+citations, the result is `fallback` with
+`normal_repository_inspection`; a main coding agent may continue with its
+normal Git/search/read path.
+
+When a task requests both `repository_context` and `patch_proposal`, Router
+orders Context Scout before the proposal worker and passes only the verified
+citation references as hints. The proposal worker must still re-read and verify
+those locations.
+
 ### Run a static route
 
 ```bash
@@ -87,7 +111,8 @@ against the current registry so routing drift is visible.
 4. live v0.2 execution is read-only
 5. canonical World Model writes still require Contribution -> PR -> CI -> Review
 6. DeepSeek Harness proposals run in an ephemeral no-remote Git snapshot; source-workspace writes are separate
-7. traces are persisted and hash-checked
+7. Context Scout reads only a committed-HEAD no-remote snapshot and may only return verified in-repo citations
+8. traces are persisted and hash-checked
 
 See `docs/architecture.md` for the full architecture.
 

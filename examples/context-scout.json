@@ -1,0 +1,15 @@
+{
+  "goal": "Locate the implementation of deterministic routing and the tests that cover it.",
+  "domains": ["software"],
+  "intent": "development",
+  "required_capabilities": ["repository_context"],
+  "constraints": {
+    "workspace": "aiman-agent-router",
+    "scout_query": "Locate deterministic routing implementation and its unit tests. Return the most relevant file/line citations.",
+    "scout_max_turns": 5,
+    "scout_timeout": 90
+  },
+  "evidence_required": false,
+  "freshness_required": false,
+  "side_effects": false
+}
