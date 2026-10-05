@@ -180,10 +180,35 @@ class LiveRouterRuntime:
                 )
                 continue
 
+            if identifier == "aiman.context-scout":
+                response = self.bridge.call(
+                    "context.scout",
+                    self._context_scout_arguments(routed["task"]),
+                )
+                outputs[identifier] = response.result
+                execution_rows.append(
+                    {
+                        "target": identifier,
+                        "operation": response.operation,
+                        "status": "completed" if response.result.get("ok") is True else "fallback",
+                        "fallback": response.result.get("fallback"),
+                    }
+                )
+                continue
+
             if identifier == "aiman.deepseek-harness-headless":
+                arguments = self._deepseek_arguments(routed["task"])
+                scout = outputs.get("aiman.context-scout")
+                if isinstance(scout, dict) and scout.get("ok") is True:
+                    arguments["context_citations"] = [
+                        row.get("source_ref")
+                        for row in scout.get("citations", [])
+                        if isinstance(row, dict) and isinstance(row.get("source_ref"), str)
+                    ][:10]
+                    arguments["context_source_head"] = scout.get("source_head")
                 response = self.bridge.call(
                     "deepseek.harness.propose",
-                    self._deepseek_arguments(routed["task"]),
+                    arguments,
                 )
                 outputs[identifier] = response.result
                 execution_rows.append(
@@ -217,8 +242,11 @@ class LiveRouterRuntime:
             return self._finish(trace)
 
         verification = self._verify(routed["task"], outputs)
+        result_status = "verified" if verification["ok"] else (
+            "fallback" if verification.get("fallback") else "failed"
+        )
         trace["result"] = {
-            "status": "verified" if verification["ok"] else "failed",
+            "status": result_status,
             "verified": verification["ok"],
             "verification": verification,
             "outputs": outputs,
@@ -269,6 +297,27 @@ class LiveRouterRuntime:
         metadata["kev_snapshot"] = kev
 
     @staticmethod
+    def _context_scout_arguments(task: dict[str, Any]) -> dict[str, Any]:
+        constraints = task.get("constraints")
+        constraints = constraints if isinstance(constraints, dict) else {}
+        workspace = constraints.get("workspace")
+        if not isinstance(workspace, str) or not workspace.strip():
+            raise ValueError("Context Scout execution requires constraints.workspace")
+        query = constraints.get("scout_query")
+        if not isinstance(query, str) or not query.strip():
+            query = str(task.get("goal") or "").strip()
+        if not query:
+            raise ValueError("Context Scout execution requires a query")
+        max_turns = max(1, min(int(constraints.get("scout_max_turns", 5)), 6))
+        timeout = max(10, min(int(constraints.get("scout_timeout", 90)), 120))
+        return {
+            "workspace": workspace.strip(),
+            "query": query,
+            "max_turns": max_turns,
+            "timeout": timeout,
+        }
+
+    @staticmethod
     def _deepseek_arguments(task: dict[str, Any]) -> dict[str, Any]:
         constraints = task.get("constraints")
         constraints = constraints if isinstance(constraints, dict) else {}
@@ -301,6 +350,43 @@ class LiveRouterRuntime:
         task: dict[str, Any],
         outputs: dict[str, Any],
     ) -> dict[str, Any]:
+        scout = outputs.get("aiman.context-scout")
+        scout_check: dict[str, Any] | None = None
+        if scout is not None:
+            if not isinstance(scout, dict):
+                return {"ok": False, "reason": "context_scout_invalid_output"}
+            if scout.get("ok") is not True:
+                scout_check = {
+                    "ok": False,
+                    "code": scout.get("code"),
+                    "fallback": scout.get("fallback") or "normal_repository_inspection",
+                    "elapsed_ms": scout.get("elapsed_ms"),
+                }
+            else:
+                citations = scout.get("citations")
+                if (
+                    scout.get("read_only") is not True
+                    or scout.get("production_effect") != "none"
+                    or scout.get("isolation") != "committed_head_snapshot_no_remote"
+                    or not isinstance(citations, list)
+                    or not citations
+                    or any(
+                        not isinstance(row, dict)
+                        or row.get("verified") is not True
+                        or not isinstance(row.get("path"), str)
+                        or not row.get("path")
+                        for row in citations
+                    )
+                ):
+                    return {"ok": False, "reason": "context_scout_boundary_mismatch"}
+                scout_check = {
+                    "ok": True,
+                    "workspace": scout.get("workspace"),
+                    "source_head": scout.get("source_head"),
+                    "citation_count": len(citations),
+                    "elapsed_ms": scout.get("elapsed_ms"),
+                }
+
         deepseek = outputs.get("aiman.deepseek-harness-headless")
         deepseek_check: dict[str, Any] | None = None
         if deepseek is not None:
@@ -317,9 +403,21 @@ class LiveRouterRuntime:
 
         robotics = outputs.get("aiman.robotics")
         if robotics is None:
-            if deepseek_check is None:
+            if deepseek_check is None and scout_check is None:
                 return {"ok": False, "reason": "no_verifiable_output"}
-            return {"ok": True, **deepseek_check}
+            if deepseek_check is None and scout_check is not None and not scout_check["ok"]:
+                return {
+                    "ok": False,
+                    "reason": "context_scout_fallback",
+                    "fallback": scout_check["fallback"],
+                    "context_scout": scout_check,
+                }
+            result = {"ok": True}
+            if deepseek_check is not None:
+                result.update(deepseek_check)
+            if scout_check is not None:
+                result["context_scout"] = scout_check
+            return result
 
         if not isinstance(robotics, dict):
             return {"ok": False, "reason": "missing_robotics_output"}
@@ -353,6 +451,8 @@ class LiveRouterRuntime:
         }
         if deepseek_check is not None:
             result["deepseek"] = deepseek_check
+        if scout_check is not None:
+            result["context_scout"] = scout_check
         return result
 
     def _finish(self, trace: dict[str, Any]) -> dict[str, Any]:

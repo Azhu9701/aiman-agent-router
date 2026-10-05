@@ -51,9 +51,10 @@ def kev_result(*, needs_second_source: bool = False) -> dict:
 
 
 class FakeBridge:
-    def __init__(self, *, empty_events: bool = False) -> None:
+    def __init__(self, *, empty_events: bool = False, scout_fail: bool = False) -> None:
         self.calls: list[tuple[str, dict]] = []
         self.empty_events = empty_events
+        self.scout_fail = scout_fail
 
     def call(self, operation: str, arguments: dict) -> BridgeResponse:
         self.calls.append((operation, arguments))
@@ -64,6 +65,38 @@ class FakeBridge:
             )
         if operation == "kev.analyze":
             return BridgeResponse(operation=operation, result=kev_result())
+        if operation == "context.scout":
+            if self.scout_fail:
+                return BridgeResponse(
+                    operation=operation,
+                    result={
+                        "ok": False,
+                        "code": "SCOUT_MODEL_UNAVAILABLE",
+                        "fallback": "normal_repository_inspection",
+                        "read_only": True,
+                        "production_effect": "none",
+                        "elapsed_ms": 1,
+                    },
+                )
+            return BridgeResponse(
+                operation=operation,
+                result={
+                    "ok": True,
+                    "workspace": arguments["workspace"],
+                    "source_head": "abc123",
+                    "read_only": True,
+                    "production_effect": "none",
+                    "isolation": "committed_head_snapshot_no_remote",
+                    "elapsed_ms": 7,
+                    "citations": [
+                        {
+                            "path": "src/aiman_agent_router/router.py",
+                            "source_ref": "src/aiman_agent_router/router.py:1-20",
+                            "verified": True,
+                        }
+                    ],
+                },
+            )
         if operation == "deepseek.harness.propose":
             return BridgeResponse(
                 operation=operation,
@@ -201,6 +234,102 @@ class LiveRuntimeTests(unittest.TestCase):
             self.assertEqual(
                 [name for name, _ in bridge.calls],
                 ["agentdock.health", "deepseek.harness.propose"],
+            )
+
+    def test_live_runtime_executes_and_verifies_context_scout(self) -> None:
+        bridge = FakeBridge()
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = LiveRouterRuntime(self.router, bridge, TraceStore(tmp))
+            trace = runtime.run(
+                {
+                    "goal": "Locate the routing implementation.",
+                    "domains": ["software"],
+                    "intent": "development",
+                    "required_capabilities": ["repository_context"],
+                    "constraints": {
+                        "workspace": "aiman-agent-router",
+                        "scout_query": "locate the router",
+                        "scout_max_turns": 4,
+                        "scout_timeout": 60,
+                    },
+                    "evidence_required": False,
+                    "freshness_required": False,
+                    "side_effects": False,
+                }
+            )
+            self.assertEqual(trace["decision"]["selected"], ["aiman.context-scout"])
+            self.assertEqual(trace["result"]["status"], "verified")
+            self.assertTrue(trace["result"]["verified"])
+            self.assertEqual(
+                trace["result"]["verification"]["context_scout"]["citation_count"],
+                1,
+            )
+            self.assertEqual(
+                [name for name, _ in bridge.calls],
+                ["agentdock.health", "context.scout"],
+            )
+
+    def test_context_scout_can_precede_deepseek_and_pass_citations_forward(self) -> None:
+        bridge = FakeBridge()
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = LiveRouterRuntime(self.router, bridge, TraceStore(tmp))
+            trace = runtime.run(
+                {
+                    "goal": "Locate the code and propose a safe patch.",
+                    "domains": ["software"],
+                    "intent": "development",
+                    "required_capabilities": ["repository_context", "patch_proposal"],
+                    "constraints": {
+                        "workspace": "aiman-agent-router",
+                        "scout_query": "locate the router",
+                        "timeout": 60,
+                    },
+                    "evidence_required": False,
+                    "freshness_required": False,
+                    "side_effects": False,
+                }
+            )
+            self.assertEqual(
+                trace["decision"]["selected"],
+                ["aiman.context-scout", "aiman.deepseek-harness-headless"],
+            )
+            self.assertEqual(trace["result"]["status"], "verified")
+            deepseek_calls = [
+                arguments
+                for operation, arguments in bridge.calls
+                if operation == "deepseek.harness.propose"
+            ]
+            self.assertEqual(len(deepseek_calls), 1)
+            self.assertEqual(
+                deepseek_calls[0]["context_citations"],
+                ["src/aiman_agent_router/router.py:1-20"],
+            )
+            self.assertEqual(
+                [name for name, _ in bridge.calls],
+                ["agentdock.health", "context.scout", "deepseek.harness.propose"],
+            )
+
+    def test_context_scout_unavailable_returns_non_blocking_fallback(self) -> None:
+        bridge = FakeBridge(scout_fail=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = LiveRouterRuntime(self.router, bridge, TraceStore(tmp))
+            trace = runtime.run(
+                {
+                    "goal": "Locate the routing implementation.",
+                    "domains": ["software"],
+                    "intent": "development",
+                    "required_capabilities": ["repository_context"],
+                    "constraints": {"workspace": "aiman-agent-router"},
+                    "evidence_required": False,
+                    "freshness_required": False,
+                    "side_effects": False,
+                }
+            )
+            self.assertEqual(trace["result"]["status"], "fallback")
+            self.assertFalse(trace["result"]["verified"])
+            self.assertEqual(
+                trace["result"]["verification"]["fallback"],
+                "normal_repository_inspection",
             )
 
     def test_live_runtime_fails_verification_when_iwm_returns_no_events(self) -> None:

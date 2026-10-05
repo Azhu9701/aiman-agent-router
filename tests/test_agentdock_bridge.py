@@ -25,6 +25,69 @@ class AgentDockBridgeTests(unittest.TestCase):
         self.assertEqual(result["operation"], "agentdock.health")
         self.assertEqual(result["result"]["executor"], "agentdock-test")
 
+    def test_context_scout_operation_is_allowlisted(self) -> None:
+        with patch.object(
+            agentdock_bridge,
+            "_context_scout",
+            return_value={
+                "ok": True,
+                "workspace": "aiman-agent-router",
+                "citations": [{"path": "README.md", "verified": True}],
+            },
+        ) as mocked:
+            result = agentdock_bridge.dispatch(
+                {
+                    "operation": "context.scout",
+                    "arguments": {
+                        "workspace": "aiman-agent-router",
+                        "query": "locate the router",
+                        "max_turns": 4,
+                        "timeout": 60,
+                    },
+                }
+            )
+        mocked.assert_called_once()
+        self.assertTrue(result["result"]["ok"])
+
+    def test_context_scout_uses_fixed_runner_and_structured_stdin(self) -> None:
+        captured = {}
+
+        def fake_run(argv, *, input_text=None, timeout=60):
+            captured["argv"] = argv
+            captured["input_text"] = input_text
+            captured["timeout"] = timeout
+            return {
+                "ok": True,
+                "workspace": "aiman-agent-router",
+                "citations": [{"path": "README.md", "verified": True}],
+            }
+
+        with patch.object(agentdock_bridge, "_run_json", side_effect=fake_run):
+            result = agentdock_bridge._context_scout(
+                {
+                    "workspace": "aiman-agent-router",
+                    "query": "find the route",
+                    "max_turns": 4,
+                    "timeout": 60,
+                }
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(captured["argv"][:4], [
+            agentdock_bridge.SSH,
+            "-F",
+            agentdock_bridge.SSH_CONFIG,
+            agentdock_bridge.MAC_WORKNODE,
+        ])
+        self.assertEqual(
+            captured["argv"][4],
+            "/usr/bin/python3 " + agentdock_bridge.CONTEXT_SCOUT_RUNNER,
+        )
+        payload = __import__("json").loads(captured["input_text"])
+        self.assertEqual(payload["workspace"], "aiman-agent-router")
+        self.assertEqual(payload["query"], "find the route")
+        self.assertEqual(captured["timeout"], 90)
+
     def test_deepseek_harness_operation_is_allowlisted(self) -> None:
         with patch.object(
             agentdock_bridge,
@@ -50,6 +113,29 @@ class AgentDockBridgeTests(unittest.TestCase):
         )
         self.assertTrue(result["result"]["ok"])
 
+
+    def test_deepseek_handoff_includes_verified_scout_hints_in_task_text(self) -> None:
+        captured = {}
+
+        def fake_run(argv, *, input_text=None, timeout=60):
+            captured["payload"] = __import__("json").loads(input_text)
+            return {"ok": True, "result": {"worker": "deepseek-harness.headless"}}
+
+        with patch.object(agentdock_bridge, "_run_json", side_effect=fake_run):
+            agentdock_bridge._deepseek_harness_propose(
+                {
+                    "workspace": "aiman-agent-router",
+                    "task": "inspect the router",
+                    "timeout": 60,
+                    "context_citations": ["src/aiman_agent_router/router.py:1-20"],
+                    "context_source_head": "a" * 40,
+                }
+            )
+
+        task = captured["payload"]["task"]
+        self.assertIn("Read-only Context Scout hints", task)
+        self.assertIn("src/aiman_agent_router/router.py:1-20", task)
+        self.assertIn("Scout source HEAD", task)
 
     def test_lineage_operation_is_allowlisted(self) -> None:
         with patch.object(

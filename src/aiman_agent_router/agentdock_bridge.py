@@ -25,6 +25,10 @@ EMIBOT_OPS = os.environ.get(
     "AIMAN_EMIBOT_OPS",
     "/usr/local/sbin/emibot-ops",
 )
+CONTEXT_SCOUT_RUNNER = os.environ.get(
+    "AIMAN_CONTEXT_SCOUT_RUNNER",
+    "/Users/mac/aiman-agent-node/runtime/context-scout-runner.py",
+)
 
 
 def _parse_object(text: str) -> dict[str, Any]:
@@ -513,6 +517,34 @@ def _robot_lineage_admission(arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _context_scout(arguments: dict[str, Any]) -> dict[str, Any]:
+    workspace = str(arguments.get("workspace") or "").strip()
+    query = str(arguments.get("query") or "").strip()
+    if not workspace:
+        raise ValueError("workspace is required")
+    if not query:
+        raise ValueError("query is required")
+    max_turns = max(1, min(int(arguments.get("max_turns", 5)), 6))
+    timeout = max(10, min(int(arguments.get("timeout", 90)), 120))
+    remote = "/usr/bin/python3 " + shlex.quote(CONTEXT_SCOUT_RUNNER)
+    response = _run_json(
+        [SSH, "-F", SSH_CONFIG, MAC_WORKNODE, remote],
+        input_text=json.dumps(
+            {
+                "workspace": workspace,
+                "query": query,
+                "max_turns": max_turns,
+                "timeout": timeout,
+            },
+            ensure_ascii=False,
+        ),
+        timeout=timeout + 30,
+    )
+    if not isinstance(response.get("ok"), bool):
+        raise RuntimeError("Context Scout returned an invalid response")
+    return response
+
+
 def _deepseek_harness_propose(arguments: dict[str, Any]) -> dict[str, Any]:
     workspace = str(arguments.get("workspace") or "").strip()
     task = str(arguments.get("task") or "").strip()
@@ -521,6 +553,27 @@ def _deepseek_harness_propose(arguments: dict[str, Any]) -> dict[str, Any]:
     if not task:
         raise ValueError("task is required")
     timeout = max(10, min(int(arguments.get("timeout", 600)), 1800))
+    context_citations = arguments.get("context_citations")
+    if isinstance(context_citations, list):
+        refs = [
+            value.strip()[:300]
+            for value in context_citations
+            if isinstance(value, str) and value.strip()
+        ][:10]
+    else:
+        refs = []
+    if refs:
+        source_head = str(arguments.get("context_source_head") or "").strip()[:80]
+        note = [
+            "",
+            "",
+            "Read-only Context Scout hints; verify these locations before relying on them:",
+            *[f"- {ref}" for ref in refs],
+        ]
+        if source_head:
+            note.append(f"Scout source HEAD: {source_head}")
+        task = task + "\n".join(note)
+
     response = _run_json(
         [SSH, "-F", SSH_CONFIG, MAC_WORKNODE],
         input_text=json.dumps(
@@ -600,6 +653,8 @@ def dispatch(request: dict[str, Any]) -> dict[str, Any]:
         result = _robot_lineage_admission(arguments)
     elif operation == "iwm.timeline.search":
         result = _iwm_search(arguments)
+    elif operation == "context.scout":
+        result = _context_scout(arguments)
     elif operation == "deepseek.harness.propose":
         result = _deepseek_harness_propose(arguments)
     else:

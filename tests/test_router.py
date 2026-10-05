@@ -59,6 +59,39 @@ class RouterTests(unittest.TestCase):
         )
         self.assertFalse(result["decision"]["human_review_required"])
 
+    def test_routes_repository_context_to_local_context_scout(self) -> None:
+        result = self.router.route_and_plan(
+            {
+                "goal": "Locate the implementation before editing.",
+                "domains": ["software"],
+                "intent": "development",
+                "required_capabilities": ["repository_context"],
+                "evidence_required": False,
+                "freshness_required": False,
+                "side_effects": False,
+            }
+        )
+        self.assertEqual(result["decision"]["status"], "ready")
+        self.assertEqual(result["decision"]["selected"], ["aiman.context-scout"])
+        self.assertFalse(result["decision"]["human_review_required"])
+
+    def test_context_scout_precedes_patch_proposal_when_both_are_requested(self) -> None:
+        result = self.router.route_and_plan(
+            {
+                "goal": "Find the relevant code and propose a patch.",
+                "domains": ["software"],
+                "intent": "development",
+                "required_capabilities": ["repository_context", "patch_proposal"],
+                "evidence_required": False,
+                "freshness_required": False,
+                "side_effects": False,
+            }
+        )
+        self.assertEqual(
+            result["decision"]["selected"],
+            ["aiman.context-scout", "aiman.deepseek-harness-headless"],
+        )
+
     def test_unknown_capability_fails_closed(self) -> None:
         result = self.router.route_and_plan(
             {
