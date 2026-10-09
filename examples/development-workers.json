@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "workers": [
+    {
+      "id": "mac-worknode",
+      "role": "development",
+      "enabled": true,
+      "workspaces": ["aiman-agent-router", "aiman-agent-node", "emibot"]
+    },
+    {
+      "id": "new-server-example",
+      "role": "development",
+      "enabled": false,
+      "workspaces": []
+    },
+    {
+      "id": "production",
+      "role": "production-operations",
+      "enabled": false,
+      "workspaces": []
+    }
+  ]
+}
